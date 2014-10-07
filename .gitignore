@@ -20,3 +20,6 @@ src/regtests/jedutil/output
 /xmame.dispmanx.37b16
 /xmame.SDL.37b16
 /xmame.obj
+/SyncToy*
+/*~
+/.*~

@@ -1,20 +1,18 @@
 
- *********************
- ** XMAME / XMESS **
- *********************
+ **********************************
+ ** XMAME 37b16 for Raspberry Pi **
+ **********************************
 
  -------------
 
- Quick Readme by Matt Lowry
- Last Updated : 12th April 2001
+ Quick Readme by Slaanesh
+ Last Updated : 8th October 2014
 
  -------------
 
 Q: What is xmame?
-Q: What is xmess?
 
-A: Xmame/xmess is the Unix and Unix-like port of the highly esteemed MAME/MESS
-   system.
+A: Xmame is the Unix and Unix-like port of the highly esteemed MAME system.
 
 
 Q: What is MAME/MESS?
@@ -30,78 +28,27 @@ A: MAME stands for Multi Arcade Machine Emulator. As the name suggests, it is
     development teams, they share a lot of code and are distributed together.
 
 
-Q: I'm interested! Where can I get more info?
-
-A: You will find documentation (of sorts) in the doc/ subdirectory.
-   You will probably want to go straight to the xmame/xmess doco:
-     doc/xmame-doc.lyx  -> Source LyX file.
-     doc/xmame-doc.html -> Top level page for HTML version.
-     doc/xmame-doc.sgml -> For those suitably persuaded.
-     doc/xmame-doc.ps   -> Here's some Postscript we prepared earlier ...
-     doc/xmame-doc.txt  -> Plain old boring text.
-   Don't be fooled by the name, the above doco is for _both_ xmame and xmess.
-
-   There are also some Unix man pages:
-     doc/xmame.6
-     doc/xmess.6
-
-   There are various other files in the doc/ directory that contain information
-    you may find interesting or useful.
-
-   Also you can check out the xmame/xmess homepage at:
-                       http://x.mame.net
-    (Deutsche version: http://x.mame.net/german.html)
-
-
 Q: How do I compile XMAME/XMESS?
 
-A: The documentation (doc/xmame-doc.*) contains detailed instructions, 
-    including extra notes specific to particular hardware/OS combinations.
-   READ THE DOCUMENTATION FIRST!
-   Then edit the Makefile (it contains lots of helpful hints).
-   Then run make.
-   No, there is no configure script. Feel free to write one yourself and
-    contribute it to the project. :)
+A: The Raspberry Pi version can be compiled by using the following 3 steps:
+   'make' - to create the directory structure
+   'm68k.sh' - to create Musashi 68000 Op code generator
+   'make' - to complete the compile. Allow 90-120 minutes if compiling on Pi.
 
-Q: What platforms can I run XMAME/XMESS on?
+
+Q: What optimizations have beem made to this version?
 
 A: Lots! :)
-   Currently the following CPU bases are explicitly supported in the Makefile:
-   i386  /  ia64   /  alpha  /  m68k  /  risc (various flavours)
-
-   The following OSes are also explicitly supported:
-   Linux / FreeBSD / NetBSD / OpenBSD / Solaris / NeXT / MacOS-X / IRIX / AIX
-
-   The following display methods are explicitly supported:
-   X11(R6) / SVGAlib (Linux only) / GGI (only tested on Linux) / 
-   XGL (i.e. X with OpenGL) / XFX (i.e. X with 3Dfx) / 
-   SVGAfx (i.e. SVGAlib with 3Dfx) / OpenStep / SDL / Photon2
-
-   If your OS is not listed above, then there is also a "generic unix"
-    compilation target that may work for you.
-   The display method of choice is X11. If you have an X server on your
-    system the xmame/xmess will talk to it. The other display methods are
-    aimed at improving the framerate the xmame/xmess runs at, but may not
-    be available on your system.
-
-
-Q: When I tried compiling <xyz> went wrong. Help?
-
-A: Read the documentation. In particular the section of the main documentation
-    that discussed compilation.
+   DispmanX for graphics output scaling.
+   Cyclone and DrZ80 ARM assembly CPU cores for M68000 and Z80 respectively.
+   Other improvements as "necessary".
+   There's also an SDL version without dispmanx for non-raspberry systems.
 
 
 Q: OK, I've got the source and compiled it. How do I run a game?
 
-A: Xmame/xmess are __emulators__. They make the hardware in front of you
-    (an X86 box, say) pretend to be the specialist hardware that arcade
-    machines contain. In this way the original game code can run on your
-    PC. So to play a game you need that original game code as well.
-   The documentation discusses this matter in some detail.
+A: ./xmame.dispmanx.37b16 <game> 
 
+   By default cyclone and drz80 are not enabled, to enable these specify:
 
-Q: I've got more questions!
-
-A: Read the documentation. :)
-
-
+   ./xmame.dispmanx.37b16 <game> -cyclone -drz80
