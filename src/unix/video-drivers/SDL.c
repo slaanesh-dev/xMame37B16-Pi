@@ -578,7 +578,7 @@ void sysdep_update_display(struct osd_bitmap *bitmap)
 
    (*update_function)(bitmap);
 
-   if (doublebuf == 1)
+   //if (doublebuf == 1)	// Assist with ports, always call SDL_Flip();
       SDL_Flip(Surface);
 
    use_dirty = old_use_dirty;

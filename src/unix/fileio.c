@@ -64,10 +64,10 @@ struct rc_option fileio_opts[] = {
      XMAMEROOT"/roms",		0,			0,		NULL,
      "Set the rom search path" },
    { "spooldir",	"sd",			rc_string,	&spooldir,
-     XMAMEROOT"/hi",		0,			0,		NULL,
+     "hi",		0,			0,		NULL,
      "Set highscore spooldir" },
    { "screenshotdir",	"ssd",			rc_string,	&screenshot_dir,
-     ".",		0,			0,		NULL,
+     "snap",		0,			0,		NULL,
      "Set dir to store screenshots in" },
 #ifdef MESS
    { "cheatdir",	NULL,			rc_string,	&cheatdir,
@@ -500,7 +500,7 @@ void *osd_fopen(const char *gamename, const char *filename, int filetype,
 		case OSD_FILETYPE_HIGHSCORE:
 		    if (mame_highscore_enabled())
 		    {
-			snprintf(name, MAXPATHL, "%s/%s.hi", spooldir, gamename);
+			snprintf(name, MAXPATHL, "%s/.%s%s/%s/%s.hi", home_dir, NAME, VERSION, spooldir, gamename);
 			f->file = fopen(name,write ? "w" : "r");
 		    }
 		    break;
@@ -508,7 +508,7 @@ void *osd_fopen(const char *gamename, const char *filename, int filetype,
 		    /* only for writing */
 		    if (!write) break;
 		    
-		    snprintf(name, MAXPATHL, "%s/%s.png", screenshot_dir, filename);
+		    snprintf(name, MAXPATHL, "%s/.%s%s/%s/%s.png", home_dir, NAME, VERSION, screenshot_dir, filename);
 		    f->file = fopen(name, "w");
 		    break;
 		case OSD_FILETYPE_INPUTLOG:

@@ -363,6 +363,14 @@ int config_init (int argc, char *argv[])
    snprintf(buffer, BUF_SIZE, "%s/.%s%s/%s", home_dir, NAME, VERSION, "nvram");
    if (rc_check_and_create_dir(buffer))
       return OSD_NOT_OK;
+#ifdef RASPI
+   snprintf(buffer, BUF_SIZE, "%s/.%s%s/%s", home_dir, NAME, VERSION, "snap");
+   if (rc_check_and_create_dir(buffer))
+      return OSD_NOT_OK;
+   snprintf(buffer, BUF_SIZE, "%s/.%s%s/%s", home_dir, NAME, VERSION, "hi");
+   if (rc_check_and_create_dir(buffer))
+      return OSD_NOT_OK;
+#endif
    snprintf(buffer, BUF_SIZE, "%s/.%s%s/%s", home_dir, NAME, VERSION, "rc");
    
    /* parse the commandline */

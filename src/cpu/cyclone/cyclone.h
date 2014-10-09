@@ -11,7 +11,7 @@
 #ifndef __CYCLONE_H__
 #define __CYCLONE_H__
 
-#define WRITEWORD_WORKAROUND 1
+//#define WRITEWORD_WORKAROUND 1
 
 #ifdef __cplusplus
 extern "C" {
