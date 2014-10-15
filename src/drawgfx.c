@@ -273,7 +273,12 @@ struct GfxElement *decodegfx(const UINT8 *src,const struct GfxLayout *gl)
 	}
 	else
 	{
+#ifdef RASPI
+		extern int use_packed_gfx;
+		if (use_packed_gfx && gl->planes <= 4 && !(gfx->width & 1))
+#else
 		if (0 && gl->planes <= 4 && !(gfx->width & 1))
+#endif
 /*		if (gl->planes <= 4 && !(gfx->width & 1)) */
 		{
 			gfx->flags |= GFX_PACKED;
@@ -2127,45 +2132,94 @@ INLINE void common_drawgfxzoom( struct osd_bitmap *dest_bmp,const struct GfxElem
 					{
 						if (pri_buffer)
 						{
-							for( y=sy; y<ey; y++ )
+							if (gfx->flags & GFX_PACKED)
 							{
-								UINT8 *source = gfx->gfxdata + (source_base+(y_index>>16)) * gfx->line_modulo;
-								UINT8 *dest = dest_bmp->line[y];
-								UINT8 *pri = pri_buffer->line[y];
-
-								int x, x_index = x_index_base;
-								for( x=sx; x<ex; x++ )
+								for( y=sy; y<ey; y++ )
 								{
-									int c = source[x_index>>16];
-									if (((1 << c) & transparent_color) == 0)
-									{
-										if (((1 << pri[x]) & pri_mask) == 0)
-											dest[x] = pal[c];
-										pri[x] = 31;
-									}
-									x_index += dx;
-								}
+									UINT8 *source = gfx->gfxdata + (source_base+(y_index>>16)) * gfx->line_modulo;
+									UINT8 *dest = dest_bmp->line[y];
+									UINT8 *pri = pri_buffer->line[y];
 
-								y_index += dy;
+									int x, x_index = x_index_base;
+									for( x=sx; x<ex; x++ )
+									{
+										int c = (source[x_index>>17] >> ((x_index & 0x10000) >> 14)) & 0x0f;
+										if (((1 << c) & transparent_color) == 0)
+										{
+											if (((1 << pri[x]) & pri_mask) == 0)
+												dest[x] = pal[c];
+											pri[x] = 31;
+										}
+										x_index += dx;
+									}
+
+									y_index += dy;
+								}
+							}
+							else
+							{
+								for( y=sy; y<ey; y++ )
+								{
+									UINT8 *source = gfx->gfxdata + (source_base+(y_index>>16)) * gfx->line_modulo;
+									UINT8 *dest = dest_bmp->line[y];
+									UINT8 *pri = pri_buffer->line[y];
+
+									int x, x_index = x_index_base;
+									for( x=sx; x<ex; x++ )
+									{
+										int c = source[x_index>>16];
+										if (((1 << c) & transparent_color) == 0)
+										{
+											if (((1 << pri[x]) & pri_mask) == 0)
+												dest[x] = pal[c];
+											pri[x] = 31;
+										}
+										x_index += dx;
+									}
+
+									y_index += dy;
+								}
 							}
 						}
 						else
 						{
-							for( y=sy; y<ey; y++ )
+							if (gfx->flags & GFX_PACKED)
 							{
-								UINT8 *source = gfx->gfxdata + (source_base+(y_index>>16)) * gfx->line_modulo;
-								UINT8 *dest = dest_bmp->line[y];
-
-								int x, x_index = x_index_base;
-								for( x=sx; x<ex; x++ )
+								for( y=sy; y<ey; y++ )
 								{
-									int c = source[x_index>>16];
-									if (((1 << c) & transparent_color) == 0)
-										dest[x] = pal[c];
-									x_index += dx;
-								}
+									UINT8 *source = gfx->gfxdata + (source_base+(y_index>>16)) * gfx->line_modulo;
+									UINT8 *dest = dest_bmp->line[y];
 
-								y_index += dy;
+									int x, x_index = x_index_base;
+									for( x=sx; x<ex; x++ )
+									{
+										int c = (source[x_index>>17] >> ((x_index & 0x10000) >> 14)) & 0x0f;
+										if (((1 << c) & transparent_color) == 0)
+											dest[x] = pal[c];
+										x_index += dx;
+									}
+
+									y_index += dy;
+								}
+							}
+							else
+							{
+								for( y=sy; y<ey; y++ )
+								{
+									UINT8 *source = gfx->gfxdata + (source_base+(y_index>>16)) * gfx->line_modulo;
+									UINT8 *dest = dest_bmp->line[y];
+
+									int x, x_index = x_index_base;
+									for( x=sx; x<ex; x++ )
+									{
+										int c = source[x_index>>16];
+										if (((1 << c) & transparent_color) == 0)
+											dest[x] = pal[c];
+										x_index += dx;
+									}
+
+									y_index += dy;
+								}
 							}
 						}
 					}
@@ -4366,6 +4420,79 @@ DECLARE_SWAP_RAW_PRI(blockmove_8toN_transblend,(COMMON_ARGS,
 })
 
 
+DECLARE_SWAP_RAW_PRI(blockmove_4toN_transblend,(COMMON_ARGS,
+		COLOR_ARG,int transpen),
+{
+	ADJUST_4
+
+	if (flipx)
+	{
+		DATA_TYPE *end;
+
+		while (dstheight)
+		{
+			int col;
+
+			end = dstdata - dstwidth*HMODULO;
+			if (leftskip)
+			{
+				col = *(srcdata++)>>4;
+				if (col != transpen) SETPIXELCOLOR(0,*dstdata | LOOKUP(col))
+				INCREMENT_DST(-HMODULO)
+			}
+			while (dstdata > end)
+			{
+				col = *(srcdata)&0x0f;
+				if (col != transpen) SETPIXELCOLOR(0,*dstdata | LOOKUP(col))
+				INCREMENT_DST(-HMODULO)
+				if (dstdata > end)
+				{
+					col = *(srcdata++)>>4;
+					if (col != transpen) SETPIXELCOLOR(0,*dstdata | LOOKUP(col))
+					INCREMENT_DST(-HMODULO)
+				}
+			}
+
+			srcdata += srcmodulo;
+			INCREMENT_DST(ydir*VMODULO + dstwidth*HMODULO)
+			dstheight--;
+		}
+	}
+	else
+	{
+		DATA_TYPE *end;
+
+		while (dstheight)
+		{
+			int col;
+
+			end = dstdata + dstwidth*HMODULO;
+			if (leftskip)
+			{
+				col = *(srcdata++)>>4;
+				if (col != transpen) SETPIXELCOLOR(0,*dstdata | LOOKUP(col))
+				INCREMENT_DST(HMODULO)
+			}
+			while (dstdata < end)
+			{
+				col = *(srcdata)&0x0f;
+				if (col != transpen) SETPIXELCOLOR(0,*dstdata | LOOKUP(col))
+				INCREMENT_DST(HMODULO)
+				if (dstdata < end)
+				{
+					col = *(srcdata++)>>4;
+					if (col != transpen) SETPIXELCOLOR(0,*dstdata | LOOKUP(col))
+					INCREMENT_DST(HMODULO)
+				}
+			}
+
+			srcdata += srcmodulo;
+			INCREMENT_DST(ydir*VMODULO - dstwidth*HMODULO)
+			dstheight--;
+		}
+	}
+})
+
 #define PEN_IS_OPAQUE ((1<<col)&transmask) == 0
 
 DECLARE_SWAP_RAW_PRI(blockmove_8toN_transmask,(COMMON_ARGS,
@@ -4470,6 +4597,80 @@ DECLARE_SWAP_RAW_PRI(blockmove_8toN_transmask,(COMMON_ARGS,
 		}
 	}
 })
+
+DECLARE_SWAP_RAW_PRI(blockmove_4toN_transmask,(COMMON_ARGS,
+		COLOR_ARG,int transmask),
+{
+	ADJUST_4
+
+	if (flipx)
+	{
+		DATA_TYPE *end;
+
+		while (dstheight)
+		{
+			int col;
+
+			end = dstdata - dstwidth*HMODULO;
+			if (leftskip)
+			{
+				col = *(srcdata++)>>4;
+				if (PEN_IS_OPAQUE) SETPIXELCOLOR(0,LOOKUP(col))
+				INCREMENT_DST(-HMODULO)
+			}
+			while (dstdata > end)
+			{
+				col = *(srcdata)&0x0f;
+				if (PEN_IS_OPAQUE) SETPIXELCOLOR(0,LOOKUP(col))
+				INCREMENT_DST(-HMODULO)
+				if (dstdata > end)
+				{
+					col = *(srcdata++)>>4;
+					if (PEN_IS_OPAQUE) SETPIXELCOLOR(0,LOOKUP(col))
+					INCREMENT_DST(-HMODULO)
+				}
+			}
+
+			srcdata += srcmodulo;
+			INCREMENT_DST(ydir*VMODULO + dstwidth*HMODULO)
+			dstheight--;
+		}
+	}
+	else
+	{
+		DATA_TYPE *end;
+
+		while (dstheight)
+		{
+			int col;
+
+			end = dstdata + dstwidth*HMODULO;
+			if (leftskip)
+			{
+				col = *(srcdata++)>>4;
+				if (PEN_IS_OPAQUE) SETPIXELCOLOR(0,LOOKUP(col))
+				INCREMENT_DST(HMODULO)
+			}
+			while (dstdata < end)
+			{
+				col = *(srcdata)&0x0f;
+				if (PEN_IS_OPAQUE) SETPIXELCOLOR(0,LOOKUP(col))
+				INCREMENT_DST(HMODULO)
+				if (dstdata < end)
+				{
+					col = *(srcdata++)>>4;
+					if (PEN_IS_OPAQUE) SETPIXELCOLOR(0,LOOKUP(col))
+					INCREMENT_DST(HMODULO)
+				}
+			}
+
+			srcdata += srcmodulo;
+			INCREMENT_DST(ydir*VMODULO - dstwidth*HMODULO)
+			dstheight--;
+		}
+	}
+})
+
 
 DECLARE_SWAP_RAW_PRI(blockmove_8toN_transcolor,(COMMON_ARGS,
 		COLOR_ARG,const UINT16 *colortable,int transcolor),
@@ -5354,10 +5555,20 @@ DECLARE(drawgfx_core,(
 				break;
 
 			case TRANSPARENCY_PENS:
-				if (pribuf)
-					BLOCKMOVEPRI(8toN_transmask,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,pribuf,pri_mask,transparent_color));
+				if (gfx->flags & GFX_PACKED)
+				{
+				    if (pribuf)
+					    BLOCKMOVEPRI(4toN_transmask,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,pribuf,pri_mask,transparent_color));
+				    else
+					    BLOCKMOVELU(4toN_transmask,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,transparent_color));
+				}
 				else
-					BLOCKMOVELU(8toN_transmask,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,transparent_color));
+				{
+				    if (pribuf)
+					    BLOCKMOVEPRI(8toN_transmask,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,pribuf,pri_mask,transparent_color));
+				    else
+					    BLOCKMOVELU(8toN_transmask,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,transparent_color));
+				}
 				break;
 
 			case TRANSPARENCY_PENS_RAW:
@@ -5385,6 +5596,7 @@ DECLARE(drawgfx_core,(
 				break;
 
 			case TRANSPARENCY_PEN_TABLE:
+				// Only used by 8bpp GFX so no GFX_PACKED required
 				if (pribuf)
 					BLOCKMOVEPRI(8toN_pen_table,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,paldata,pribuf,pri_mask,transparent_color));
 				else
@@ -5392,6 +5604,7 @@ DECLARE(drawgfx_core,(
 				break;
 
 			case TRANSPARENCY_PEN_TABLE_RAW:
+				// Not used?
 				if (pribuf)
 					BLOCKMOVERAWPRI(8toN_pen_table,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,pribuf,pri_mask,transparent_color));
 				else
@@ -5399,10 +5612,20 @@ DECLARE(drawgfx_core,(
 				break;
 
 			case TRANSPARENCY_BLEND_RAW:
-				if (pribuf)
-					BLOCKMOVERAWPRI(8toN_transblend,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,pribuf,pri_mask,transparent_color));
+				if (gfx->flags & GFX_PACKED)
+				{
+				    if (pribuf)
+					    BLOCKMOVERAWPRI(4toN_transblend,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,pribuf,pri_mask,transparent_color));
+				    else
+					    BLOCKMOVERAW(4toN_transblend,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,transparent_color));
+				}
 				else
-					BLOCKMOVERAW(8toN_transblend,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,transparent_color));
+				{
+				    if (pribuf)
+					    BLOCKMOVERAWPRI(8toN_transblend,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,pribuf,pri_mask,transparent_color));
+				    else
+					    BLOCKMOVERAW(8toN_transblend,(sd,sw,sh,sm,ls,ts,flipx,flipy,dd,dw,dh,dm,color,transparent_color));
+				}
 				break;
 
 			case TRANSPARENCY_ALPHAONE:

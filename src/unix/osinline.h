@@ -20,6 +20,14 @@ extern unsigned char **dirty_blocks;
 #define osd_mark_vector_dirty(x,y)
 #endif
 
+
+#define clip_short _clip_short
+#define _clip_short(x) { int sign = x >> 31; if (sign != (x >> 15)) x = sign ^ ((1 << 15) - 1); }
+
+#define clip_short_ret _clip_short_ret
+INLINE int _clip_short_ret(int x) { _clip_short(x); return x; }
+
+
 #define mix_sample _mix_sample
 #define _mix_sample(dst,src) \
     __asm__ __volatile__ \

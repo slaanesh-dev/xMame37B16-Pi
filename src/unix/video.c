@@ -36,6 +36,18 @@ static struct my_rectangle debug_visual;
 
 float gamma_correction = 1.0;
 
+#ifdef RASPI
+#include "osinline.h"
+/* average FPS calculation */
+static INT64 start_time = 0;
+static INT64 end_time;
+static int frames_displayed;
+static int frames_to_display;
+int use_packed_gfx;
+extern UINT8 trying_to_quit;
+#endif
+
+
 #ifdef xgl
 	static int bitmap4GLTexture = 0;
 #endif
@@ -121,6 +133,14 @@ struct rc_option video_opts[] = {
    { "flipy",		"fy",			rc_set_int,	&options.flipy,
      NULL,		1,			0,		NULL,
      "Flip Y axis" },
+#ifdef RASPI
+   { "frames_to_run",   "ftr",                  rc_int,         &frames_to_display,
+    "0",               0,                      0,              NULL,
+    "Sets the number of frames to run within the game" },
+   { "packed_gfx",      "pgfx",                 rc_bool,        &use_packed_gfx,
+    "0",               0,                      0,              NULL,
+    "Used packed graphics for storing ROM graphic regions" },
+#endif
    { "Vector Games Related", NULL,		rc_seperator,	NULL,
      NULL,		0,			0,		NULL,
      NULL },
@@ -422,6 +442,13 @@ void osd_close_display (void)
    osd_free_colors();
    sysdep_display_close();
    osd_dirty_close ();
+#ifdef RASPI
+   /* print a final result to the stdout */
+   if (frames_displayed != 0)
+   {
+      fprintf(stderr_file, "Average FPS: %f (%d frames)\n", (double)CLOCKS_PER_SEC / (end_time - start_time) * frames_displayed, frames_displayed);
+   }
+#endif
 }
 
 static void osd_change_display_settings(struct my_rectangle *new_visual,
@@ -693,9 +720,15 @@ printf("sysdep_display_alloc_palette(video_colors_used=%d)\n", video_colors_used
          Machine->uifont->colortable[3] = 0;
 
          if(color_start)
+	 {
+	    printf("set black pen = 0\n");
             sysdep_palette_set_pen(normal_palette, 0, 0, 0, 0);
+	 }
          if( writable_colors > (totalcolors+color_start) )
+	 {	
+	    printf("set white pen = %d\n", writable_colors - 1);
             sysdep_palette_set_pen(normal_palette, writable_colors - 1, 0xFF, 0xFF, 0xFF);
+	 }
 
          /* debug palette */
          if (debugger_pens)
@@ -828,6 +861,10 @@ void osd_update_video_and_audio(struct osd_bitmap *normal_bitmap,
       }
 
       if (showfps == 0) showfpstemp = 2 * Machine->drv->frames_per_second;
+#ifdef RASPI
+      /* reset the frame counter so we'll measure the average FPS on a consistent status */
+      frames_displayed = 0;
+#endif
    }
 
    if (input_ui_pressed(IPT_UI_FRAMESKIP_DEC))
@@ -844,6 +881,10 @@ void osd_update_video_and_audio(struct osd_bitmap *normal_bitmap,
       }
       
       if (showfps == 0)	showfpstemp = 2 * Machine->drv->frames_per_second;
+#ifdef RASPI
+      /* reset the frame counter so we'll measure the average FPS on a consistent status */
+      frames_displayed = 0;
+#endif
    }
    
    if (!keyboard_pressed(KEYCODE_LSHIFT) && !keyboard_pressed(KEYCODE_RSHIFT)
@@ -851,6 +892,10 @@ void osd_update_video_and_audio(struct osd_bitmap *normal_bitmap,
        && input_ui_pressed(IPT_UI_THROTTLE))
    {
       throttle ^= 1;
+#ifdef RASPI
+      /* reset the frame counter so we'll measure the average FPS on a consistent status */
+      frames_displayed = 0;
+#endif
    }
    
    if (input_ui_pressed(IPT_UI_THROTTLE) && (keyboard_pressed(KEYCODE_RSHIFT) || keyboard_pressed(KEYCODE_LSHIFT)))
@@ -955,6 +1000,25 @@ void osd_update_video_and_audio(struct osd_bitmap *normal_bitmap,
 
    if (skip_this_frame == 0)
    {
+#ifdef RASPI
+      /* at the end, we need the current time */
+      INT64 curr = osd_cycles();
+
+      /* update stats for the FPS average calculation */
+      if (start_time == 0)
+      {
+         /* start the timer going 1 second into the game */
+         if (timer_get_time() > 1.0)
+         start_time = curr;
+      }
+      else
+      {
+         frames_displayed++;
+         if (frames_displayed + 1 == frames_to_display)
+         trying_to_quit = 1;
+         end_time = curr;
+      }
+#endif
       profiler_mark(PROFILER_BLIT);
       sysdep_palette_update(current_palette);
       sysdep_update_display(current_bitmap);

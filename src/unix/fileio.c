@@ -336,7 +336,7 @@ int osd_faccess(const char *filename, int filetype)
 		    }
 		    break;
 		case OSD_FILETYPE_SCREENSHOT:
-		    snprintf(name, MAXPATHL, "%s/%s.png",screenshot_dir ,filename);
+		    snprintf(name, MAXPATHL, "%s/.%s%s/%s/%s.png", home_dir, NAME, VERSION, screenshot_dir, filename);
 		    if (access(name, F_OK) == 0) return 1;
 		    break;
 	}

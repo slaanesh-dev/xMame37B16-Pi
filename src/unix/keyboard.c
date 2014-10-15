@@ -136,6 +136,11 @@ static char key[KEY_MAX];
 
 extern int use_hotrod;
 
+#ifdef RASPI
+unsigned int trying_to_quit = 0;
+#endif
+
+
 /* private methods */
 FIFO(INLINE, kbd, struct keyboard_event)
 
@@ -268,6 +273,15 @@ int osd_is_key_pressed(int keycode)
    
    if (keycode >= KEY_MAX)
       return 0;
+#ifdef RASPI
+    /* special case: if we're trying to quit, fake up/down/up/down */
+    if (keycode == KEY_ESC && trying_to_quit)
+    {
+	static int dummy_state = 1;
+	return dummy_state ^= 1;
+    }
+#endif
+
 
    sysdep_update_keyboard();
 	

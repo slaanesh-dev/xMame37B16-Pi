@@ -55,6 +55,9 @@ struct rc_option sound_opts[] = {
    { "stereo",          "st",                   rc_bool,        &options.use_stereo,
      "1",               0,                      0,              NULL,
      "Force stereo sound" },
+   { "resamplefilter",  NULL,                   rc_bool,        &options.use_filter,
+     "0",               0,                      0,              NULL,
+     "Use resample filter. Useful for some sound types." },
 #endif
    { "fakesound",	"fsnd",			rc_set_int,	&sound_fake,
      NULL,		1,			0,		sound_set_options,

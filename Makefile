@@ -124,7 +124,7 @@ CFLAGS = -pipe -g \
         -fomit-frame-pointer -fno-builtin -fno-exceptions -fno-common \
         -fstrict-aliasing  -fmerge-all-constants  \
         -finline -fweb -frename-registers -falign-functions=16 \
-        -DRASPI -DENABLE_AUTOFIRE -DSPEEDHACK
+        -DRASPI -DENABLE_AUTOFIRE -DSPEEDHACK -DUSE_8BIT
 
 # *** Does your compiler supports inline funcs?. use appropiate item:
 # do not use IL = inline : wont work due to Z80 and 6809 stuffs

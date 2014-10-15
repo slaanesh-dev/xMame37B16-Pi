@@ -85,6 +85,7 @@ int palette_start(void)
 	else
 		colormode = PALETTIZED_8BIT;
 
+	fprintf(stderr,"Machine->color_depth:%u colormode:%u GAME_REQUIRES_16BIT:%u\n", Machine->color_depth, colormode, Machine->gamedrv->flags & GAME_REQUIRES_16BIT);
 	switch (colormode)
 	{
 		case PALETTIZED_8BIT:
@@ -1931,12 +1932,10 @@ WRITE16_HANDLER( paletteram16_RRRRRGGGGGBBBBBx_word_w )
 }
 
 
-INLINE void changecolor_IIIIRRRRGGGGBBBB(int color, int data)
+INLINE void changecolor_IIIIRRRRGGGGBBBB(int color,int data)
 {
 	int i,r,g,b;
 
-	/* Slaanesh: fix for cyclone */
-	data= ((int)data)&0xffff;
 
 	static const int ztable[16] =
 		{ 0x0, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11 };
@@ -1945,8 +1944,6 @@ INLINE void changecolor_IIIIRRRRGGGGBBBB(int color, int data)
 	r = ((data >> 8) & 15) * i;
 	g = ((data >> 4) & 15) * i;
 	b = ((data >> 0) & 15) * i;
-
-	printf("c:%3.3x data:%8.8x i:%3.3x r:%3.3x g:%3.3x b:%3.3x\n", color, data, i,r,g,b);
 
 	palette_change_color(color,r,g,b);
 }

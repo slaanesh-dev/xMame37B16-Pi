@@ -43,9 +43,9 @@
 
 #define DISPMANX_WIDTH	640
 #define DISPMANX_HEIGHT	480
+#define MAXCOLORS_8BIT	256
 
-/* This is to use 8-bit textures */
-//#define USE_8BIT 1
+/* TO use 8-bit textures, define USE_8BIT in the Makefile */
 
 static int vsync;
 static int smooth;
@@ -100,7 +100,7 @@ void sdl_update_16_to_16bpp(struct osd_bitmap *bitmap);
 
 int sysdep_init(void)
 {
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
     printf ("dispmanx: sysdep_init()\n");
 #endif
     //Initialise dispmanx
@@ -114,7 +114,7 @@ int sysdep_init(void)
 
 void sysdep_close(void)
 {
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
     printf ("dispmanx: sysdep_close()\n");
 #endif
     bcm_host_deinit();
@@ -125,7 +125,7 @@ int sysdep_create_display(int visual_width, int visual_height, int depth)
 {
 	static int init_once = 1;
 
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
     printf ("dispmanx: sysdep_create_display %dx%d %dbpp\n", visual_width, visual_height, depth);
 #endif
 
@@ -156,10 +156,9 @@ int sysdep_create_display(int visual_width, int visual_height, int depth)
 			exit (OSD_NOT_OK);
 		}
 
-		/* Need this so that basic SDL functionality will work */
-		/*
-		 * Seeing as we need to do this, we could use this buffer
-		 * for the blit buffer
+		/* Need this so that basic SDL functionality will work
+		 *
+		 * Seeing as we need to do this, we could use this buffer for the blit buffer
 		 */
 		sdlscreen = SDL_SetVideoMode(0,0, 16, SDL_SWSURFACE);
 
@@ -171,15 +170,16 @@ int sysdep_create_display(int visual_width, int visual_height, int depth)
 		/* dispmanx init */
 		dispmanx_init();
 
-		/* dispmanx setup */
-#ifdef USE_8BIT
-		dispmanx_set_video_mode(visual_width,visual_height,depth);
-#else
-		dispmanx_set_video_mode(visual_width,visual_height,Vid_depth/* always 16-bit */);
-#endif
-
 		/* fill the display_palette_info struct */
 		memset(&display_palette_info, 0, sizeof(struct sysdep_palette_info));
+
+#ifdef USE_8BIT
+		/* dispmanx setup */
+		dispmanx_set_video_mode(visual_width,visual_height,depth);
+#else
+		/* dispmanx setup */
+		dispmanx_set_video_mode(visual_width,visual_height,Vid_depth/* always 16-bit */);
+#endif
 		display_palette_info.depth = Vid_depth;
 		if (Vid_depth == 8)
 			 display_palette_info.writable_colors = 256;
@@ -193,6 +193,7 @@ int sysdep_create_display(int visual_width, int visual_height, int depth)
 		  display_palette_info.green_mask = 0x0000FF00;
 		  display_palette_info.blue_mask  = 0x000000FF;
 		};
+
 
 		init_once = 0;
 	}
@@ -284,7 +285,7 @@ void sdl_update_16_to_16bpp (struct osd_bitmap *bitmap)
 
 void sysdep_update_display(struct osd_bitmap *bitmap)
 {
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
     printf ("dispmanx: sysdep_update_display()\n");
 #endif
     int old_use_dirty = use_dirty;
@@ -302,43 +303,56 @@ void sysdep_update_display(struct osd_bitmap *bitmap)
 /* shut up the display */
 void sysdep_display_close(void)
 {
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
     printf ("dispmanx: sysdep_display_close()\n");
 #endif
     if(sdlscreen)
     {
-	SDL_FreeSurface(sdlscreen);
-	sdlscreen = NULL;
+		SDL_FreeSurface(sdlscreen);
+		sdlscreen = NULL;
     }
     dispmanx_deinit();
 
     if(pi_palette)
     {
-	free(pi_palette);
-	pi_palette=0;
+		free(pi_palette);
+		pi_palette=0;
     }
 }
 
 
 int sysdep_display_alloc_palette(int totalcolors)
 {
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
    printf ("dispmanx: sysdep_alloc_palette()\n");
 #endif
-   pi_palette=(unsigned short *)memalign(32,256*sizeof(unsigned short));
-   memset(pi_palette, 0, 256*sizeof(unsigned short));
+   pi_palette=(unsigned short *)memalign(32,MAXCOLORS_8BIT*sizeof(unsigned short));
+   memset(pi_palette, 0, MAXCOLORS_8BIT*sizeof(unsigned short));
    return 0;
 }
 
 
 int sysdep_display_set_pen(int pen,unsigned char red, unsigned char green, unsigned char blue)
 {
-#ifdef DEBUG
+#ifdef DISPMANX_DEBUG
     printf("sysdep_display_set_pen(%d:%2.2x%2.2x%2.2x)\n", pen, red, green, blue);
 #endif
-    pi_palette[pen]=(((red>>3)&0x1f) << 11) | (((green>>2)&0x3f) << 5 ) | ((blue>>3)&0x1f);
-
-    gles2_palette_changed();
+	if (pi_palette)
+	{
+		if (pen < MAXCOLORS_8BIT)
+		{
+		    pi_palette[pen]=(((red>>3)&0x1f) << 11) | (((green>>2)&0x3f) << 5 ) | ((blue>>3)&0x1f);
+		    gles2_palette_changed();
+		}
+		else
+		{
+		    fprintf(stderr, "ERROR: Rasp Pi Palette out of range: sysdep_display_set_pen(%d:%2.2x%2.2x%2.2x)\n", pen, red, green, blue);
+		}
+	}
+	else
+	{
+		fprintf(stderr, "ERROR: Rasp Pi Palette not yet init: sysdep_display_set_pen(%d:%2.2x%2.2x%2.2x)\n", pen, red, green, blue);
+	}
 
     return 0;
 }
@@ -376,15 +390,6 @@ void sysdep_update_keyboard()
          {
             case SDL_KEYDOWN:
                kevent.press = 1;
-
-#ifndef RASPI
-               /* ALT-Enter: toggle fullscreen */
-               if ( event.key.keysym.sym == SDLK_RETURN )
-               {
-                  if(event.key.keysym.mod & KMOD_ALT)
-                     SDL_WM_ToggleFullScreen(SDL_GetVideoSurface());
-               }
-#endif
 
             case SDL_KEYUP:
                kevent.scancode = klookup[event.key.keysym.sym];
@@ -435,7 +440,7 @@ void sysdep_update_keyboard()
 
 int sysdep_display_16bpp_capable(void)
 {
-   /* Should check to see if Raspberry Pi is current in 8-BPP mode */
+   /* Should check to see if Raspberry Pi is currently in 8-BPP mode */
    return 1;
 }
 
@@ -478,7 +483,9 @@ static void dispmanx_init(void)
    
     uint32_t display_width, display_height;
 
+#ifdef DISPMANX_DEBUG
     printf( "dispmanx_init()\n");
+#endif /* DISPMANX_DEBUG */
 
     VC_RECT_T dst_rect;
     VC_RECT_T src_rect;
@@ -525,7 +532,9 @@ static void dispmanx_deinit(void)
 {
     int ret;
 
+#ifdef DISPMANX_DEBUG
     printf( "dispmanx_deinit()\n");
+#endif /* DISPMANX_DEBUG */
     gles2_destroy();
 
     // Release OpenGL resources
@@ -534,6 +543,7 @@ static void dispmanx_deinit(void)
     eglDestroyContext( display, context );
     eglTerminate( display );
 
+	// Release DispmanX resource
     dispman_update = vc_dispmanx_update_start( 0 );
     ret = vc_dispmanx_element_remove( dispman_update, dispman_element );
     ret = vc_dispmanx_element_remove( dispman_update, dispman_element_bg );
@@ -542,6 +552,7 @@ static void dispmanx_deinit(void)
     ret = vc_dispmanx_resource_delete( resource_bg );
     ret = vc_dispmanx_display_close( dispman_display );
 
+	// Release screen buffer
     if(screen_buffer)
     {
 		free(screen_buffer);
@@ -649,6 +660,18 @@ static void dispmanx_set_video_mode(int width,int height, int depth)
 	    vc_dispmanx_rect_set( &src_rect, 0, 0, display_adj_width << 16, display_adj_height << 16);
 	};
 
+/*
+ For reference:
+DISPMANX_TRANSFORM_T =
+    enum(
+      :DISPMANX_NO_ROTATE,  0,
+      :DISPMANX_ROTATE_90,  1,
+      :DISPMANX_ROTATE_180, 2,
+      :DISPMANX_ROTATE_270, 3,
+      :DISPMANX_FLIP_HRIZ,  1 << 16,
+      :DISPMANX_FLIP_VERT,  1 << 17
+    )
+*/
 
     dispman_display = vc_dispmanx_display_open(0);
     dispman_update = vc_dispmanx_update_start(0);
@@ -705,6 +728,6 @@ static void dispmanx_set_video_mode(int width,int height, int depth)
 static void DisplayScreen(struct osd_bitmap *bitmap)
 {
     //Draw to the screen
-    gles2_draw(screen_buffer, surface_width, surface_height, bitmap->depth, pi_palette);
+    gles2_draw(screen_buffer, surface_width, surface_height, bitmap->depth, (unsigned short *)current_palette->lookup);
     eglSwapBuffers(display, surface);
 }

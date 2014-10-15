@@ -771,10 +771,14 @@ void mixer_sh_update(void)
 			/* fetch and clip the sample */
 			sample = left_accum[accum_pos];
 #ifdef MIXER_USE_CLIPPING
+#ifndef clip_short
 			if (sample < -32768)
 				sample = -32768;
 			else if (sample > 32767)
 				sample = 32767;
+#else
+			clip_short(sample);
+#endif
 #endif
 
 			/* store and zero out behind us */
@@ -798,10 +802,14 @@ void mixer_sh_update(void)
 			/* fetch and clip the left sample */
 			sample = left_accum[accum_pos];
 #ifdef MIXER_USE_CLIPPING
+#ifndef clip_short
 			if (sample < -32768)
 				sample = -32768;
 			else if (sample > 32767)
 				sample = 32767;
+#else
+			clip_short(sample);
+#endif
 #endif
 
 			/* store and zero out behind us */
@@ -811,10 +819,14 @@ void mixer_sh_update(void)
 			/* fetch and clip the right sample */
 			sample = right_accum[accum_pos];
 #ifdef MIXER_USE_CLIPPING
+#ifndef clip_short
 			if (sample < -32768)
 				sample = -32768;
 			else if (sample > 32767)
 				sample = 32767;
+#else
+			clip_short(sample);
+#endif
 #endif
 
 			/* store and zero out behind us */

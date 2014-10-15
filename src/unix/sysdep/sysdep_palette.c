@@ -39,7 +39,7 @@ static int sysdep_palette_make_pen_from_info(struct sysdep_palette_info
    *info, unsigned char red, unsigned char green, unsigned char blue)
 {
    int pen = 0;
-
+   
    /* are the shifts initialised ? */
    if(!info->red_shift)
    {
@@ -114,15 +114,17 @@ struct sysdep_palette_struct *sysdep_palette_create(int depth,
       }
    }
    
-#ifndef DISPMANX
    /* can we do our 8 -> 16 bpp speedup hack?
       do not check for the scaleing factors sicne those might change */
    if((depth == 8) && (display_palette_info.depth == 16))
+#ifdef RASPI
+      /* Not implementing the speedup hack */
+      lookup_size = 256;
+#else
       lookup_size = 65536;
-   /* do we need a lookup table? */
-   else
 #endif
-   if ( (display_palette_info.depth != depth) ||
+   /* do we need a lookup table? */
+   else if ( (display_palette_info.depth != depth) ||
         ( (depth == 16) && writable_colors) )
       lookup_size = writable_colors? writable_colors:32768;
       
@@ -259,6 +261,10 @@ int sysdep_palette_make_pen(struct sysdep_palette_struct *palette,
       blue);
 }
 
+#ifdef RASPI
+/* Proto */
+void gles2_palette_changed(void);
+#endif
 
 void sysdep_palette_update(struct sysdep_palette_struct *palette)
 {
@@ -305,13 +311,18 @@ void sysdep_palette_update(struct sysdep_palette_struct *palette)
                int color = sysdep_palette_make_pen_from_info(
                   &display_palette_info, red, green, blue);
                
-#ifndef DISPMANX
                /* can we do our 8 -> 16 bpp speedup hack? */
                if((palette->emulated.depth == 8) &&
                   (display_palette_info.depth == 16) &&
                   (widthscale == 1) &&
                   (heightscale <= 2))
                {
+#ifdef RASPI
+		  /* Don't do the palette hack, instead make it a 16-bit palette instead */
+                  unsigned short *pal16 = (unsigned short *)palette->lookup;
+                  pal16[i] = color;
+                  gles2_palette_changed();
+#else
                   int n;
                   for(n=0;n<256;n++)
                   {
@@ -321,9 +332,9 @@ void sysdep_palette_update(struct sysdep_palette_struct *palette)
                      palette->lookup[(i<<8) | n] &= 0x0000ffff;
                      palette->lookup[(i<<8) | n] |= color << 16;
                   }
+#endif
                }
                else
-#endif
                   palette->lookup[i] = color;
                
                palette->lookup_dirty = 1;

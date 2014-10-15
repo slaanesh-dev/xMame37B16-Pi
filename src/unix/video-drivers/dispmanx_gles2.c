@@ -36,7 +36,8 @@
 //IMPORTANT, make sure this function is commented out at runtime
 //as it has a big performance impact!
 #define	SHOW_ERROR	//gles_show_error();
-//#define USE_8BIT 1
+
+//#define ORIGINAL_SHADER 1
 
 static const char* vertex_shader_prg =
     "uniform mat4 u_vp_matrix;\n"
@@ -49,6 +50,8 @@ static const char* vertex_shader_prg =
     "   gl_Position = u_vp_matrix * a_position;\n"
     "}\n";
 
+#ifdef USE_8BIT
+#ifdef ORIGINAL_SHADER
 static const char* fragment_shader_none =
     "varying mediump vec2 v_texcoord;\n"
     "uniform sampler2D u_texture;\n"
@@ -59,6 +62,18 @@ static const char* fragment_shader_none =
     "	vec4 index = texture2D(u_texture, v_texcoord);\n"
     "	gl_FragColor = texture2D(u_palette, index.xy);\n"
     "}\n";
+#else
+static const char* fragment_shader_none =
+	"varying mediump vec2 v_texcoord;												\n"
+	"uniform sampler2D u_texture;													\n"
+	"uniform sampler2D u_palette;													\n"
+	"void main()																	\n"
+	"{																				\n"
+	"	vec4 p0 = texture2D(u_texture, v_texcoord);									\n"
+	"	gl_FragColor = texture2D(u_palette, vec2(p0.r*255.0/256.0 + 1.0/256.0*0.5, 0.5));\n"
+	"}																				\n";
+#endif
+#endif
 
 static const char* fragment_shader_none_16bit =
     "varying mediump vec2 v_texcoord;\n"
@@ -233,14 +248,12 @@ static ShaderInfo shader;
 static GLuint buffers[3];
 static GLuint textures[2];
 
-static char palette_changed;
+static int palette_changed;
 
 static int dis_width;
 static int dis_height;
 static float proj[4][4];
 static float tex_width, tex_height;
-
-extern int vector_game;
 
 void gles2_create(int display_width, int display_height, int bitmap_width, int bitmap_height, int depth)
 {
@@ -345,6 +358,7 @@ void gles2_destroy()
 	glDeleteTextures(2, textures); SHOW_ERROR
 }
 
+#ifdef USE_8BIT
 //Draw using a palette texture
 static void gles2_DrawQuad_8(const ShaderInfo *sh, GLuint p_textures[2])
 {
@@ -371,6 +385,7 @@ static void gles2_DrawQuad_8(const ShaderInfo *sh, GLuint p_textures[2])
 
 	glDrawElements(GL_TRIANGLES, kIndexCount, GL_UNSIGNED_SHORT, 0); SHOW_ERROR
 }
+#endif
 
 //Draw directly, without a palette texture.
 static void gles2_DrawQuad_16(const ShaderInfo *sh, GLuint p_textures[2])
